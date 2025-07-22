@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: x64
+            target: node18-linux-x64
+          - os: macos
+            arch: x64
+            target: node18-macos-x64
+          - os: macos
+            arch: arm64
+            target: node18-macos-arm64
+          - os: win
+            arch: x64
+            target: node18-win-x64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build TypeScript
+        run: pnpm run build
+
+      - name: Build binary
+        run: |
+          npx pkg . --target ${{ matrix.target }} --output build/wt-${{ matrix.os }}-${{ matrix.arch }}
+          if [ "${{ matrix.os }}" = "win" ]; then
+            mv build/wt-${{ matrix.os }}-${{ matrix.arch }} build/wt-${{ matrix.os }}-${{ matrix.arch }}.exe
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: wt-${{ matrix.os }}-${{ matrix.arch }}
+          path: build/wt-${{ matrix.os }}-${{ matrix.arch }}*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          find artifacts -name "wt-*" -type f -exec cp {} release/ \;
+          ls -la release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
