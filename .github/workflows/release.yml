@@ -8,58 +8,64 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - os: linux
-            arch: x64
-            target: node18-linux-x64
-          - os: macos
-            arch: x64
-            target: node18-macos-x64
-          - os: macos
-            arch: arm64
-            target: node18-macos-arm64
-          - os: win
-            arch: x64
-            target: node18-win-x64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: wt-linux-x64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: wt-macos-x64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: wt-macos-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: wt-win-x64.exe
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
         with:
-          node-version: '18'
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+          profile: minimal
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+      - name: Cache cargo registry and target
+        uses: actions/cache@v3
         with:
-          version: latest
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Build TypeScript
-        run: pnpm run build
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.target }}-
+            ${{ runner.os }}-cargo-
 
       - name: Build binary
         run: |
+          cargo build --release --target ${{ matrix.target }}
           mkdir -p build
-          if [ "${{ matrix.os }}" = "win" ]; then
-            npx pkg . --target ${{ matrix.target }} --output build/wt-${{ matrix.os }}-${{ matrix.arch }}.exe
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp target/${{ matrix.target }}/release/wt.exe build/${{ matrix.artifact_name }}
           else
-            npx pkg . --target ${{ matrix.target }} --output build/wt-${{ matrix.os }}-${{ matrix.arch }}
+            cp target/${{ matrix.target }}/release/wt build/${{ matrix.artifact_name }}
           fi
-          ls -la build/
+        shell: bash
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: wt-${{ matrix.os }}-${{ matrix.arch }}
-          path: build/wt-${{ matrix.os }}-${{ matrix.arch }}*
+          name: ${{ matrix.artifact_name }}
+          path: build/${{ matrix.artifact_name }}
 
   release:
     needs: build
@@ -77,7 +83,9 @@ jobs:
         run: |
           mkdir -p release
           find artifacts -name "wt-*" -type f -exec cp {} release/ \;
-          cp install.sh release/
+          if [ -f install.sh ]; then
+            cp install.sh release/
+          fi
           ls -la release/
 
       - name: Create Release
