@@ -53,7 +53,7 @@ jobs:
           fi
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wt-${{ matrix.os }}-${{ matrix.arch }}
           path: build/wt-${{ matrix.os }}-${{ matrix.arch }}*
@@ -66,7 +66,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
 
@@ -74,6 +74,7 @@ jobs:
         run: |
           mkdir -p release
           find artifacts -name "wt-*" -type f -exec cp {} release/ \;
+          cp install.sh release/
           ls -la release/
 
       - name: Create Release

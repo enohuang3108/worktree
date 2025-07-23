@@ -15,7 +15,7 @@ Easily manage Git worktrees with interactive CLI prompts.
 ### Quick Install (Recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yourname/wt-cli/main/install.sh | bash
+curl -fsSL https://github.com/enohuang3108/worktree/releases/latest/download/install.sh | bash
 ```
 
 ### Manual Installation
