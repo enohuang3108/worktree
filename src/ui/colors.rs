@@ -1,8 +1,9 @@
 use owo_colors::OwoColorize;
+use is_terminal::IsTerminal;
 
 pub fn init_colors() {
     // 自動偵測終端是否支援顏色
-    if !atty::is(atty::Stream::Stdout) {
+    if !std::io::stdout().is_terminal() {
         // 如果不是 TTY，可以考慮禁用顏色
     }
 }
