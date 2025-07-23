@@ -15,7 +15,7 @@ clap = { version = "4.4", features = ["derive"] }
 inquire = "0.7"
 owo-colors = "4.0"
 anyhow = "1.0"
-git2 = "0.18"
+git2 = { version = "0.18", features = ["vendored-openssl"] }
 serde = { version = "1.0", features = ["derive"] }
 is-terminal = "0.4"
 
