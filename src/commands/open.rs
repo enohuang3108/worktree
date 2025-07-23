@@ -1,71 +1,35 @@
 use clap::Args;
 use anyhow::Result;
-use colored::Colorize;
-use dialoguer::Select;
-use console::style;
-
-use crate::utils::{
-    git::get_worktrees,
-    vscode::open_in_vscode,
-};
+use crate::git::repository::Repository;
+use crate::git::worktree::WorktreeManager;
+use crate::ui::prompts::Prompts;
+use crate::ui::display::Display;
+use crate::utils::system::open_vscode;
 
 #[derive(Debug, Args)]
 pub struct OpenCommand {}
 
 impl OpenCommand {
-    pub async fn execute(&self) -> Result<()> {
-        println!("{} Opening a worktree in VSCode...", "🖥️".bright_blue());
+    pub fn execute(&self) -> Result<()> {
+        Display::show_info("Opening a worktree in VSCode...");
         
-        // Get worktrees
-        let worktrees = get_worktrees().await?;
+        let repo = Repository::open_current()?;
+        let worktree_manager = WorktreeManager::new(repo.inner.path().parent().unwrap().to_path_buf());
+        
+        // 獲取 worktree 列表
+        let worktrees = worktree_manager.list_worktrees()?;
         
         if worktrees.is_empty() {
-            println!("{} No worktrees found to open.", "ℹ️".bright_blue());
+            Display::show_info("No worktrees found to open.");
             return Ok(());
         }
         
-        // Create choices for selection
-        let choices: Vec<String> = worktrees
-            .iter()
-            .map(|wt| format!("{} ({})", wt.branch, wt.path))
-            .collect();
+        // 選擇要開啟的 worktree
+        let selected_worktree = Prompts::select_worktree(worktrees)?;
         
-        // Select worktree to open
-        let selection = Select::new()
-            .with_prompt("Select worktree to open in VSCode")
-            .items(&choices)
-            .interact()?;
-        
-        let selected_worktree = &worktrees[selection];
-        
-        println!();
-        println!("Opening worktree:");
-        println!("  Branch: {}", style(&selected_worktree.branch).cyan());
-        println!("  Path: {}", style(&selected_worktree.path).yellow());
-        if let Some(ref commit) = selected_worktree.commit {
-            println!("  Commit: {}", style(commit).dim());
-        }
-        println!();
-        
-        println!("{} Opening VSCode...", "⚙️".bright_blue());
-        
-        match open_in_vscode(&selected_worktree.path).await {
-            Ok(_) => {
-                println!(
-                    "{} VSCode opened successfully for worktree '{}'!",
-                    "✅".bright_green(),
-                    selected_worktree.branch
-                );
-            }
-            Err(e) => {
-                eprintln!(
-                    "{} Failed to open VSCode for worktree '{}': {}",
-                    "❌".red(),
-                    selected_worktree.branch,
-                    e
-                );
-            }
-        }
+        Display::show_info("Opening VSCode...");
+        open_vscode(&selected_worktree.path)?;
+        Display::show_success(&format!("VSCode opened for worktree '{}'!", selected_worktree.branch));
         
         Ok(())
     }

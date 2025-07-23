@@ -1,80 +1,38 @@
 use clap::Args;
 use anyhow::Result;
-use colored::Colorize;
-use dialoguer::{Select, Confirm};
-use console::style;
-
-use crate::utils::git::{get_worktrees, remove_worktree};
+use crate::git::repository::Repository;
+use crate::git::worktree::WorktreeManager;
+use crate::ui::prompts::Prompts;
+use crate::ui::display::Display;
 
 #[derive(Debug, Args)]
 pub struct RemoveCommand {}
 
 impl RemoveCommand {
-    pub async fn execute(&self) -> Result<()> {
-        println!("{} Removing a worktree...", "🗑️".bright_red());
+    pub fn execute(&self) -> Result<()> {
+        Display::show_info("Removing a worktree...");
         
-        // Get worktrees
-        let worktrees = get_worktrees().await?;
+        let repo = Repository::open_current()?;
+        let worktree_manager = WorktreeManager::new(repo.inner.path().parent().unwrap().to_path_buf());
+        
+        // 獲取 worktree 列表
+        let worktrees = worktree_manager.list_worktrees()?;
         
         if worktrees.is_empty() {
-            println!("{} No worktrees found to remove.", "ℹ️".bright_blue());
+            Display::show_info("No worktrees found to remove.");
             return Ok(());
         }
         
-        // Create choices for selection
-        let choices: Vec<String> = worktrees
-            .iter()
-            .map(|wt| format!("{} ({})", wt.branch, wt.path))
-            .collect();
+        // 選擇要移除的 worktree
+        let selected_worktree = Prompts::select_worktree(worktrees)?;
         
-        // Select worktree to remove
-        let selection = Select::new()
-            .with_prompt("Select worktree to remove")
-            .items(&choices)
-            .interact()?;
-        
-        let selected_worktree = &worktrees[selection];
-        
-        println!();
-        println!("Selected worktree:");
-        println!("  Branch: {}", style(&selected_worktree.branch).cyan());
-        println!("  Path: {}", style(&selected_worktree.path).yellow());
-        if let Some(ref commit) = selected_worktree.commit {
-            println!("  Commit: {}", style(commit).dim());
-        }
-        println!();
-        
-        // Confirm deletion
-        let confirm = Confirm::new()
-            .with_prompt(&format!(
-                "Are you sure you want to remove the worktree '{}'?",
-                selected_worktree.branch
-            ))
-            .default(false)
-            .interact()?;
-        
-        if confirm {
-            println!("{} Removing worktree...", "⚙️".bright_blue());
-            
-            match remove_worktree(&selected_worktree.path).await {
-                Ok(_) => {
-                    println!(
-                        "{} Worktree '{}' removed successfully!",
-                        "✅".bright_green(),
-                        selected_worktree.branch
-                    );
-                }
-                Err(e) => {
-                    eprintln!(
-                        "{} Failed to remove worktree '{}': {}",
-                        "❌".red(),
-                        selected_worktree.branch,
-                        e
-                    );
-                }
-            }
+        // 確認移除
+        if Prompts::confirm_removal(&selected_worktree)? {
+            Display::show_info("Removing worktree...");
+            worktree_manager.remove_worktree(&selected_worktree.path)?;
+            Display::show_success(&format!("Worktree '{}' removed successfully!", selected_worktree.branch));
         } else {
-            println!("{} Operation cancelled.", "ℹ️".bright_blue());
+            Display::show_info("Operation cancelled.");
         }
         
         Ok(())

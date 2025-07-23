@@ -1,3 +1,3 @@
-pub mod git;
-pub mod fs;
-pub mod vscode;
+pub mod paths;
+pub mod validation;
+pub mod system;
