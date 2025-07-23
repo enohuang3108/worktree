@@ -47,10 +47,13 @@ jobs:
 
       - name: Build binary
         run: |
-          npx pkg . --target ${{ matrix.target }} --output build/wt-${{ matrix.os }}-${{ matrix.arch }}
+          mkdir -p build
           if [ "${{ matrix.os }}" = "win" ]; then
-            mv build/wt-${{ matrix.os }}-${{ matrix.arch }} build/wt-${{ matrix.os }}-${{ matrix.arch }}.exe
+            npx pkg . --target ${{ matrix.target }} --output build/wt-${{ matrix.os }}-${{ matrix.arch }}.exe
+          else
+            npx pkg . --target ${{ matrix.target }} --output build/wt-${{ matrix.os }}-${{ matrix.arch }}
           fi
+          ls -la build/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
