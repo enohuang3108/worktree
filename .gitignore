@@ -9,6 +9,7 @@ dist/
 build/
 out/
 .next/
+target/
 
 # Environment variables
 .env
@@ -58,3 +59,9 @@ coverage/
 # Temporary folders
 tmp/
 temp/
+
+# Rust
+Cargo.lock
+
+## AI
+# .kiro/
