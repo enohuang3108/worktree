@@ -22,7 +22,7 @@ impl AddCommand {
         // 選擇分支模式
         let branch_mode = Prompts::select_branch_mode()?;
         
-        let (branch_name, _base_branch) = match branch_mode {
+        let (branch_name, base_branch) = match branch_mode {
             BranchMode::NewBranch => {
                 let branch_name = Prompts::input_branch_name()?;
                 let branches = branch_manager.list_local_branches()?;
@@ -41,7 +41,7 @@ impl AddCommand {
         
         // 創建 worktree
         let worktree_manager = WorktreeManager::new(repo.inner.path().parent().unwrap().to_path_buf());
-        worktree_manager.add_worktree(&worktree_path, &branch_name)?;
+        worktree_manager.add_worktree(&worktree_path, &branch_name, &branch_mode, base_branch.as_ref().map(|b| b.name.as_str()))?;
         
         Display::show_success(&format!("Worktree created at: {}", worktree_path.display()));
         

@@ -88,20 +88,68 @@ impl WorktreeManager {
         Ok(worktrees)
     }
 
-    pub fn add_worktree(&self, path: &PathBuf, branch: &str) -> Result<()> {
+    pub fn add_worktree(&self, path: &PathBuf, branch: &str, branch_mode: &BranchMode, base_branch: Option<&str>) -> Result<()> {
         // 確保父目錄存在
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
 
-        // 使用 git worktree add 命令
-        let output = Command::new("git")
-            .args(&["worktree", "add", &path.to_string_lossy(), branch])
-            .current_dir(&self.repo_path)
-            .output()?;
+        // 根據分支模式構建命令
+        let mut cmd = Command::new("git");
+        cmd.arg("worktree").arg("add");
+
+        match branch_mode {
+            BranchMode::NewBranch => {
+                // 創建新分支: git worktree add -b <new-branch> <path> <base-branch>
+                cmd.arg("-b").arg(branch).arg(path.to_string_lossy().as_ref());
+                if let Some(base) = base_branch {
+                    cmd.arg(base);
+                }
+            }
+            BranchMode::ExistingBranch => {
+                // 使用現有分支: git worktree add <path> <existing-branch>
+                cmd.arg(path.to_string_lossy().as_ref()).arg(branch);
+            }
+        }
+
+        let output = cmd.current_dir(&self.repo_path).output()?;
 
         if !output.status.success() {
             let error_message = String::from_utf8_lossy(&output.stderr);
+            
+            // 檢查是否為分支已被其他 worktree 使用的錯誤
+            if error_message.contains("is already checked out") {
+                let branch_info = if let Some(start) = error_message.find('\'') {
+                    if let Some(end) = error_message[start + 1..].find('\'') {
+                        &error_message[start + 1..start + 1 + end]
+                    } else {
+                        branch
+                    }
+                } else {
+                    branch
+                };
+                
+                let location_info = if error_message.contains(" at ") {
+                    if let Some(at_pos) = error_message.find(" at ") {
+                        let location = &error_message[at_pos + 4..].trim_end_matches('\n');
+                        format!(" at {}", location)
+                    } else {
+                        String::new()
+                    }
+                } else {
+                    String::new()
+                };
+                
+                return Err(anyhow!(
+                    "❌ Branch '{}' is already in use by another worktree{}\n\n\
+                    💡 Solutions:\n\
+                    • Run 'wt add' again and choose \"Create new branch\" to make a new branch based on '{}'\n\
+                    • Use 'git worktree list' to see all active worktrees\n\
+                    • Remove the conflicting worktree with 'git worktree remove <path>' if no longer needed",
+                    branch_info, location_info, branch_info
+                ));
+            }
+            
             return Err(anyhow!("Failed to add worktree: {}", error_message));
         }
 
