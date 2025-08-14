@@ -20,9 +20,26 @@ curl -fsSL https://github.com/enohuang3108/worktree/releases/latest/download/ins
 
 ### Manual Installation
 
-1. Download the appropriate binary for your platform from [releases](https://github.com/yourname/wt-cli/releases)
+1. Download the appropriate binary for your platform from [releases](https://github.com/enohuang3108/worktree/releases)
 2. Make it executable: `chmod +x wt`
 3. Move to your PATH: `sudo mv wt /usr/local/bin/`
+
+### Build from Source (WSL/Older Linux compatibility)
+
+If you encounter GLIBC compatibility issues on older systems or WSL:
+
+```bash
+# Install Rust if not already installed
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Clone and build
+git clone https://github.com/enohuang3108/worktree.git
+cd worktree
+cargo build --release
+
+# Install
+sudo cp target/release/wt /usr/local/bin/
+```
 
 ## Usage
 

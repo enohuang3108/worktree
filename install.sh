@@ -82,6 +82,21 @@ fi
 # Make binary executable
 chmod +x "$TEMP_BINARY"
 
+# Test binary compatibility before installation
+print_info "🔍 Testing binary compatibility..."
+if ! "$TEMP_BINARY" --version >/dev/null 2>&1; then
+    print_error "Binary is not compatible with your system."
+    print_info "This might be a GLIBC version issue on older systems."
+    print_info ""
+    print_info "💡 Alternative installation methods:"
+    print_info "1. Build from source: git clone $REPO_URL && cd worktree && cargo build --release"
+    print_info "2. Use a newer Linux distribution or update your WSL"
+    print_info "3. Report this issue at: ${REPO_URL}/issues"
+    rm -rf "$TEMP_DIR"
+    exit 1
+fi
+print_success "Binary compatibility confirmed"
+
 # Create install directory if it doesn't exist
 mkdir -p "$INSTALL_DIR"
 
